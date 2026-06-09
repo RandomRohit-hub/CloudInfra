@@ -1,0 +1,273 @@
+# VProfile Login Failure Troubleshooting Report
+
+## Issue Summary
+
+The VProfile application was not accessible through:
+
+http://98.93.29.106:8080/
+
+The browser displayed:
+
+HTTP Status 404 – Not Found
+
+As a result, users were unable to access the login page or authenticate into the application.
+
+---
+
+# Architecture Overview
+
+The VProfile application depends on multiple backend services:
+
+User Browser
+↓
+Tomcat Application Server
+↓
+├── MySQL Database
+├── RabbitMQ
+└── Memcached
+
+For the application to function correctly, all dependencies must be available and properly configured.
+
+---
+
+# Initial Symptoms
+
+Observed behavior:
+
+* Tomcat service was running.
+* Port 8080 was accessible.
+* ROOT.war was deployed successfully.
+* Browser displayed HTTP 404 error.
+* Login page was not loading.
+
+Initially, the issue appeared to be related to Tomcat deployment.
+
+---
+
+# Investigation Process
+
+## Step 1: Verify Tomcat Service
+
+Command:
+
+sudo systemctl status tomcat10
+
+Result:
+
+Tomcat service was active and running.
+
+Conclusion:
+
+Tomcat itself was not the problem.
+
+---
+
+## Step 2: Verify Application Deployment
+
+Command:
+
+sudo ls /var/lib/tomcat10/webapps
+
+Output:
+
+ROOT
+ROOT.war
+
+Conclusion:
+
+Application WAR file was successfully deployed.
+
+---
+
+## Step 3: Analyze Tomcat Logs
+
+Command:
+
+sudo tail -100 /var/log/tomcat10/catalina.out
+
+Critical Error Found:
+
+AuthenticationFailureException
+ACCESS_REFUSED - Login was refused
+
+This indicated a RabbitMQ authentication failure during application startup.
+
+---
+
+# Root Cause 1: RabbitMQ Authentication Failure
+
+Application Configuration:
+
+rabbitmq.address=rmq01.vpofile.in
+rabbitmq.port=5672
+rabbitmq.username=rabbit
+rabbitmq.password=bunny
+
+RabbitMQ Server Users:
+
+guest
+test
+
+Problem:
+
+The application expected:
+
+Username: rabbit
+Password: bunny
+
+But the RabbitMQ server did not contain the user "rabbit".
+
+Result:
+
+Tomcat
+↓
+RabbitMQ Login
+↓
+Authentication Failed
+↓
+Application Startup Failed
+
+Error:
+
+ACCESS_REFUSED
+AuthenticationFailureException
+
+---
+
+# Root Cause 2: Database User Missing
+
+Application Configuration:
+
+jdbc.username=admin
+jdbc.password=admin123
+
+Database Inspection:
+
+SELECT user,host FROM mysql.user;
+
+Output:
+
+mariadb.sys
+mysql
+root
+
+Problem:
+
+The database user "admin" did not exist.
+
+Result:
+
+Tomcat
+↓
+Database Login
+↓
+User Not Found
+↓
+Database Authentication Failed
+
+Application could not establish a valid database connection.
+
+---
+
+# Why Login Page Was Not Opening
+
+Many developers assume:
+
+404 Error = Tomcat Failure
+
+This was incorrect.
+
+Actual sequence:
+
+Browser
+↓
+Tomcat Running
+↓
+Application Startup
+↓
+RabbitMQ Authentication Failed
+↓
+Database Authentication Failed
+↓
+Spring Context Failed
+↓
+Application Unavailable
+↓
+HTTP 404 Returned
+
+Tomcat was healthy.
+
+The application dependencies were not.
+
+---
+
+# Resolution
+
+## RabbitMQ Fix
+
+Created required RabbitMQ user:
+
+rabbit
+bunny
+
+Commands:
+
+rabbitmqctl add_user rabbit bunny
+rabbitmqctl set_user_tags rabbit administrator
+rabbitmqctl set_permissions -p / rabbit ".*" ".*" ".*"
+
+Result:
+
+RabbitMQ authentication succeeded.
+
+---
+
+## Database Fix
+
+Created required database user:
+
+admin
+admin123
+
+Commands:
+
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin123';
+GRANT ALL PRIVILEGES ON accounts.* TO 'admin'@'%';
+FLUSH PRIVILEGES;
+
+Result:
+
+Database authentication succeeded.
+
+---
+
+# Lessons Learned
+
+1. A running Tomcat service does not guarantee a running application.
+
+2. Always inspect application logs before making assumptions.
+
+3. Verify all application dependencies:
+
+   * Database
+   * RabbitMQ
+   * Memcached
+   * DNS
+   * Network Connectivity
+
+4. A 404 error may be caused by application startup failures, not just missing files.
+
+5. Configuration files such as application.properties should always be reviewed during troubleshooting.
+
+---
+
+# Final Root Cause
+
+The VProfile application failed to start because required backend dependencies were not configured correctly.
+
+Two critical issues were identified:
+
+1. RabbitMQ user "rabbit" with password "bunny" was missing.
+2. MySQL user "admin" with password "admin123" was missing.
+
+Because these dependencies failed during startup, the application context could not initialize successfully, causing the browser to display an HTTP 404 error and preventing users from reaching the login page.
