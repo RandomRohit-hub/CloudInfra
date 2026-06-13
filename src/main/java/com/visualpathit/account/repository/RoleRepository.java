@@ -6,4 +6,3 @@ import com.visualpathit.account.model.Role;
 
 public interface RoleRepository extends JpaRepository<Role, Long>{
 }
-

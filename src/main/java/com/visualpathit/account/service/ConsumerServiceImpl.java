@@ -27,4 +27,3 @@ public class ConsumerServiceImpl implements ConsumerService {
         System.out.println(" [x] Consumed  '" + consumedMessage + "'");
     }
 }
-

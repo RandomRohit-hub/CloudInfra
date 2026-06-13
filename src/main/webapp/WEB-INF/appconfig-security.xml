@@ -29,4 +29,3 @@
 		<beans:constructor-arg name="strength" value="11" />
 	</beans:bean>
 </beans:beans>
-

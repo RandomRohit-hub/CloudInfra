@@ -46,4 +46,3 @@ public class SecurityServiceImpl implements SecurityService {
         return false;
     }
 }
-

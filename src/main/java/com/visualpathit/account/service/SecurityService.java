@@ -7,4 +7,3 @@ public interface SecurityService {
 
     boolean autologin(String username, String password);
 }
-

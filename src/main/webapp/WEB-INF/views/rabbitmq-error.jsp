@@ -26,4 +26,3 @@
     <h3>RabbitMQ server is off. Please start the RabbitMQ server and try again.</h3>
 </body>
 </html>
-

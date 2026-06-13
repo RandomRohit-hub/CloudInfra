@@ -1626,4 +1626,3 @@
     return DateRangePicker;
 
 }));
-

@@ -30,4 +30,3 @@
     <p>The user you are looking for does not exist. Please try again or <a href="${pageContext.request.contextPath}/login">go back to the login page</a>.</p>
 </body>
 </html>
-
